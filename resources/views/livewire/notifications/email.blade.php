@@ -14,7 +14,7 @@
                     <x-modal-input buttonTitle="Send Test Email" title="Send Test Email">
                         <form wire:submit.prevent="sendTestEmail" class="flex flex-col w-full gap-2">
                             <x-forms.input wire:model="testEmailAddress" placeholder="test@example.com"
-                                id="testEmailAddress" label="Recipients" required />
+                                id="testEmailAddress" label="Recipient" required />
                             <x-forms.button type="submit" @click="modalOpen=false">
                                 Send Email
                             </x-forms.button>
@@ -155,6 +155,8 @@
                     label="Server Reachable" />
                 <x-forms.checkbox instantSave="saveModel" id="serverUnreachableEmailNotifications"
                     label="Server Unreachable" />
+                <x-forms.checkbox instantSave="saveModel" id="serverPatchEmailNotifications"
+                    label="Server Patching" />
             </div>
         </div>
     </div>
