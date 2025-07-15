@@ -1,0 +1,12 @@
+{
+    "v5.x": {
+        "coolify": {
+            "stable": "5.0.0-alpha.1",
+            "nightly": "5.0.0-alpha.1"
+        },
+        "helper": {
+            "stable": "2.0.0",
+            "nightly": "2.0.0"
+        }
+    }
+}
