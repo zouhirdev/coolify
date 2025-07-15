@@ -13,6 +13,7 @@ node_modules
 *.log
 
 /.cursor
+CLAUDE.md
 /.fleet
 /.idea
 /.nova
@@ -32,6 +33,7 @@ auth.json
 /public/build
 /public/hot
 /public/storage
+/public/vendor
 
 /storage/**
 !/storage/app
