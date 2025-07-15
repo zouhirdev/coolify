@@ -100,7 +100,7 @@ return [
     /*
      * When enabled, all deprecation notices will be automatically sent to Ray.
      */
-    'send_deprecated_notices_to_ray' => env('SEND_DEPRECATED_NOTICES_TO_RAY', false),
+    'send_deprecated_notices_to_ray' => env('SEND_DEPRECATED_NOTICES_TO_RAY', true),
 
     /*
      * The host used to communicate with the Ray app.
