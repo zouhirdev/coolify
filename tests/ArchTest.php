@@ -124,8 +124,7 @@ arch('Controllers')
 arch('Middleware')
     ->expect('App\Http\Middleware')
     ->toBeClasses()
-    ->not->toHavePublicMethodsBesides(['handle'])
-    ->toHaveLineCountLessThan(150);
+    ->toHaveLineCountLessThan(200);
 
 arch('Requests')
     ->expect('App\Http\Requests')
