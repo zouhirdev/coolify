@@ -5,91 +5,97 @@ on:
     branches:
       - '**v5.x**'
 
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   composer-validate:
     name: Validate composer.json
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # https://github.com/actions/runner-images
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2 # https://github.com/actions/checkout/releases/tag/v4.2.2
     
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@2.34.1 # https://github.com/shivammathur/setup-php/releases/tag/2.34.1
         with:
-          php-version: '8.4'
+          php-version: '8.4.10' # https://github.com/php/php-src/releases/tag/php-8.4.10
     
       - name: Validate composer.json
-        run: composer validate --check-lock --strict
+        run: composer validate --check-lock --strict --ansi
 
   composer-audit:
     name: Composer Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # https://github.com/actions/runner-images
     needs: [composer-validate]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2 # https://github.com/actions/checkout/releases/tag/v4.2.2
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@2.34.1 # https://github.com/shivammathur/setup-php/releases/tag/2.34.1
         with:
-          php-version: '8.4'
+          php-version: '8.4.10' # https://github.com/php/php-src/releases/tag/php-8.4.10
 
       - name: Cache Composer packages
         id: composer-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v4.2.3 # https://github.com/actions/cache/releases/tag/v4.2.3
         with:
-          path: /vendor
+          path: vendor
           key: php-${{ hashFiles('composer.lock') }}
 
       - name: Install PHP dependencies
         if: steps.composer-cache.outputs.cache-hit != 'true'
-        run: composer install --no-progress --no-interaction
+        run: composer install --no-progress --no-interaction --ansi
 
       - name: Run Composer audit
-        run: composer audit --locked --abandoned=fail
+        run: composer audit --locked --abandoned=fail --ansi
 
   bun-audit:
     name: Bun Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # https://github.com/actions/runner-images
     needs: [composer-validate]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2 # https://github.com/actions/checkout/releases/tag/v4.2.2
       
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@v2.0.2 # https://github.com/oven-sh/setup-bun/releases/tag/v2.0.2
         with:
-          bun-version: 1.2.16
+          bun-version: 1.2.18 # https://github.com/oven-sh/bun/releases/tag/bun-v1.2.18
       - name: Run Bun audit
         run: bun audit --frozen-lockfile
 
-  test:
+  tests:
     name: Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # https://github.com/actions/runner-images
     needs: [composer-audit, bun-audit]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@v4.2.2 # https://github.com/actions/checkout/releases/tag/v4.2.2
       - name: Setup PHP with Xdebug
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@2.34.1 # https://github.com/shivammathur/setup-php/releases/tag/2.34.1
         with:
-          php-version: '8.4'
-          coverage: xdebug
+          php-version: '8.4.10' # https://github.com/php/php-src/releases/tag/php-8.4.10
+          coverage: xdebug-3.4.5 # https://github.com/xdebug/xdebug/releases/tag/3.4.5
 
-      # - name: Install aspell
+      # - name: Install aspell # Disabeled as Peck is not working (once it is fixed add peck to test:all in composer.json)
       #   run: sudo apt-get update && sudo apt-get install -y aspell aspell-en
       
       - name: Cache Composer packages
         id: composer-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v4.2.3 # https://github.com/actions/cache/releases/tag/v4.2.3
         with:
-          path: /vendor
+          path: vendor
           key: php-${{ hashFiles('composer.lock') }}
 
       - name: Install PHP dependencies
         if: steps.composer-cache.outputs.cache-hit != 'true'
-        run: composer install --no-progress --no-interaction
+        run: composer install --no-progress --no-interaction --ansi
 
       - name: Run tests
         run: composer test:all

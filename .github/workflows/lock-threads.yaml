@@ -4,12 +4,21 @@ on:
   schedule:
     - cron: '0 1 * * *'
 
+permissions:
+  issues: write
+  pull-requests: write
+  discussions: write
+
+concurrency:
+  group: lock-threads
+  cancel-in-progress: true
+
 jobs:
   lock-threads:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # https://github.com/actions/runner-images
     steps:
       - name: Lock threads after 30 days of inactivity
-        uses: dessant/lock-threads@v5
+        uses: dessant/lock-threads@v5.0.1 # https://github.com/dessant/lock-threads/releases/tag/v5.0.1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           issue-inactive-days: 30

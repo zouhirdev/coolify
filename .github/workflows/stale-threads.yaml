@@ -4,17 +4,25 @@ on:
   schedule:
     - cron: '0 2 * * *'
 
+permissions:
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: stale-threads
+  cancel-in-progress: true
+
 jobs:
   stale-threads:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # https://github.com/actions/runner-images
     steps:
       - name: Manage stale threads (Issues & PRs)
-        uses: actions/stale@v9
+        uses: actions/stale@v9.1.0 # https://github.com/actions/stale/releases/tag/v9.1.0
         with:
           stale-issue-message: |
             This issue has been marked as stale due to inactivity. It will be automatically closed in 7 days if no update is received.
             
-            Please provide the requested information to keep the issue active.
+            Please provide the requested information to keep this issue active.
           stale-pr-message: |
             This pull request has been marked as stale due to inactivity. It will be automatically closed in 7 days if no update is received.
             
