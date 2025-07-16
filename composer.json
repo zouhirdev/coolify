@@ -4,14 +4,7 @@
     "type": "project",
     "description": "Coolify a free, open-source & self-hostable PaaS alternative to Heroku, Netlify, Vercel and Railway.",
     "homepage": "https://coolify.io",
-    "keywords": [
-        "coolify",
-        "deployment",
-        "self-hosted",
-        "open-source",
-        "docker",
-        "podman"
-    ],
+    "keywords": ["coolify", "deployment", "self-hosted", "open-source", "docker", "podman"],
     "license": "Apache-2.0",
     "require": {
         "php": "^8.4",
