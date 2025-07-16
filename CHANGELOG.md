@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Release Highlights
 
-- New UI and UX
+- Complete user Interface & Experience overhaul for a more modern and intuitive experience
 -
 
 ### Added
@@ -16,21 +16,22 @@ All notable changes to this project will be documented in this file.
 - **Worker Servers**
   - XX
 - **Tests**
-  - XX
-  - A custom Pest architecture test that enforces Laravel/PHP best practices and ensures security and consistency across the codebase
-  - `test.yaml` workflow with `composer.json` validation, Composer and Bun security checks and execution of all test commands
+  - Complete unit and feature test architecture with a test PostgresDB and automatic database refresh on all test
+  - Custom Pest architecture test that enforces Laravel/PHP best practices and ensures security and consistency across the codebase
+  - `test.yaml` workflow with `composer.json` validation, Composer and Bun security checks and automatic execution of all test commands (refactoring, linting, unit and feature tests...)
 - **Code Quality & Tooling**
-  - Strict custom Laravel Pint rules for consistent formatting and code quality enforcement
-  - Custom composer scripts to run refactors, linting, tests, typo checking, type checking, test-coverage, type-coverage and to run after installation
-  - Larastan (PHPStan) Level X for static analysis and type checking
-  - Rector with a strict configuration for automatic PHP modernizations and refactors
+  - Strict custom Laravel Pint rules for consistent formatting and code quality enforcement across the codebase
+  - Custom composer scripts to run refactors, linting, tests, typo checking, type checking, test-coverage, type-coverage and publish assets after installation
+  - Larastan (PHPStan) Level X for code analysiss and type checking
+  - Rector with a strict configuration file for automatic PHP modernizations and refactors
   - Strict `AppServiceProvider.php`
-    - Optionally enforce HTTPS in production
-    - Stronger password rules in production
+    - Optionally enforce HTTPS
+    - Enforce strong password validation rules in production
     - Disable destructive artisan commands in production
-    - Strict model configuration and morph maps for polymorphic relationships
-    - Immutable dates
-    - Fake sleep and prevent stray HTTP requests in tests
+    - Automatic eager loading of relationships to avoid N+1 queries
+    - Strict model configuration and morph map for polymorphic relationships
+    - Global immutable dates
+    - Fake sleep and prevent stray HTTP requests during testing
     - Prevent exception truncation in development
     - Aggressive Vite prefetching for better performance
 
@@ -42,23 +43,30 @@ All notable changes to this project will be documented in this file.
 
 - **Docker**
   - XX
-  - Stricter `.dockerignore` file for smaller image builds
+  - Updated `.dockerignore` file to minimize build context and reduce image size
 - **Dependencies**
-  - Switched from NPM to Bun for XX times faster builds
+  - Switched package managers from NPM to Bun for XX times faster builds
+  - Started using `$schema` in`composer.json` and `package.json` files
   - Upgraded all core NPM, Composer, and Dockerfile dependencies to the latest stable (LTS) versions
 - **Laravel Configuration**
-  - Changed hashing algorithm to `argon2id` instead of `bcrypt` for more secure password hashing
-  - XX
-  - Updated all Laravel config files to latest versions
-- Stricter `.gitignore` file
-- A better structured `versions.json` file with clearer `nightly` and `stable` versions
+  - Reordered, restructured, and cleaned up `.env` files for each environment
+  - Password reset tokens now expire after 10 minutes (instead of 60 minutes) for improved security
+  - Switched hashing algorithm from `bcrypt` to `argon2id` with a custom configuration for enhanced security
+  - Use Redis for sessions (instead of Postgres), encrypt all session data and expire sessions after 7 days of inacticity
+  - Updated all Laravel configuration files to the latest versions and removed all unused configuration options
+- Updated multiple `.gitignore` files for stricter version control hygiene
+- Restructured `versions.json` file and clearer separation of `stable` and `nightly` versions
 
 ### Refactored
 
 - **Coolify GitHub**
   - Renamed GitHub action workflows for clarity
   - Cancel in-progress action runs when a new run is triggered
-  - Removed `chore-remove-labels-and-assignees-on-close.yml` action
+  - Use GitHub action cache to speed up action runs
   - Refactored GitHub issue templates to use issue types instead of labels and improved formatting & wording
-  - Move `README.md` assets into `.github/assets/` to exclude them from builds
-  - Adjust `SECURITY.md` support policy for the `v5.x` release
+  - Cleaned up the pull request template
+  - Move `README.md` assets into `.github/assets/` to exclude them from builds and exports
+  - Adjusted `SECURITY.md` support policy for the `v5.x` release
+  - Removed `chore-remove-labels-and-assignees-on-close.yml` action
+- **Database Schema**
+  - Completely refactored all database migrations and tables for a cleaner, more consistent database schema
