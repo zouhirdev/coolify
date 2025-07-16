@@ -50,7 +50,7 @@ return [
             'driver' => 'pgsql',
             'url' => env('OLD_DB_URL'),
             'host' => env('OLD_DB_HOST', 'old-coolify-db'),
-            'port' => env('OLD_DB_PORT', '5433'),
+            'port' => env('OLD_DB_PORT', '5555'),
             'database' => env('OLD_DB_DATABASE', 'coolify'),
             'username' => env('OLD_DB_USERNAME'),
             'password' => env('OLD_DB_PASSWORD'),
@@ -59,17 +59,6 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => 'prefer',
-        ],
-
-        'sqlite' => [
-            'driver' => 'sqlite',
-            'url' => env('DB_URL'),
-            'database' => env('DB_DATABASE', database_path('database.sqlite')),
-            'prefix' => '',
-            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
         ],
     ],
 
@@ -111,19 +100,19 @@ return [
 
         'default' => [
             'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'host' => env('REDIS_HOST', 'coolify-redis'),
+            'port' => env('REDIS_PORT', '6379'),
             'username' => env('REDIS_USERNAME'),
             'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT', '6379'),
             'database' => env('REDIS_DB', '0'),
         ],
 
         'cache' => [
             'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'host' => env('REDIS_HOST', 'coolify-redis'),
+            'port' => env('REDIS_PORT', '6379'),
             'username' => env('REDIS_USERNAME'),
             'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT', '6379'),
             'database' => env('REDIS_CACHE_DB', '1'),
         ],
     ],
