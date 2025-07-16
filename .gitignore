@@ -1,6 +1,5 @@
 .env
 .env.backup
-.env.secrets
 
 .bash_history
 .ssh
@@ -12,21 +11,35 @@ node_modules
 
 *.log
 
-/.cursor
+.ai
+/.clinerules
 CLAUDE.md
+/.cursor
 /.fleet
 /.idea
+/.junie
 /.nova
 .phpstorm.meta.php
 /.vscode
+/.windsurfrules
 /.zed
 
 .DS_Store
+Thumbs.db
+
+*.swo
+*.swp
 
 *.sqlite*
 
+Homestead.json
+Homestead.yaml
+
 auth.json
 .ignition.json
+.php-cs-fixer.cache
+.php-cs-fixer.php
+.phpactor.json
 .phpunit.cache
 .phpunit.result.cache
 
