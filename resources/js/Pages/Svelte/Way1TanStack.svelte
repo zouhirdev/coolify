@@ -18,7 +18,7 @@
 
     // Manual tracking state for this approach. --> Can we use the state management of TanStack and get rid of this?
     let submitSuccess = $state(false);
-    let submitErrors = $state<Record<string, string>>({});
+    // let submitErrors = $state<Record<string, string>>({}); // no longer needed as we use setErrorMap() from TanStack Form
 
     const form = createForm(() => ({
         defaultValues: {
@@ -31,9 +31,15 @@
                 preserveScroll: true,
                 onSuccess: () => {
                     submitSuccess = true;
+                    form.setErrorMap({}); // is the a metode on TanStack Form to reset errors?
                 },
                 onError: (errors) => {
-                    submitErrors = errors;
+                    // Inertia: errors.username = "error message"
+                    form.setErrorMap({
+                        onSubmit: {
+                            fields: errors
+                        }
+                    });
                 },
             });
         },
@@ -42,11 +48,11 @@
     function handleReset() {
         form.reset();
         submitSuccess = false;
-        submitErrors = {};
+        form.setErrorMap({});
     }
 
     function clearErrors() {
-        submitErrors = {};
+        form.setErrorMap({});
     }
 </script>
 
@@ -86,9 +92,8 @@
                             }}
                             class="w-full text-black px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                             class:border-yellow-400={field.state.meta.isDirty &&
-                                !submitErrors.username}
-                            class:border-red-500={submitErrors.username ||
-                                field.state.meta.errors.length > 0}
+                                field.state.meta.errors.length === 0}
+                            class:border-red-500={field.state.meta.errors.length > 0}
                         />
                         {#if errors.username}
                             <!-- Getting the errors from the $props(). Which can NOT be reset because it is a prop from Inertia. -->
@@ -98,12 +103,10 @@
                                 Inertia.
                             </p>
                         {/if}
-                        {#if submitErrors.username}
-                            <!-- Getting the errors from the submitErrors state. Which can be reset because it is svelte state. -->
+                        {#if field.state.meta.errors.length > 0}
+                            <!-- Using TanStack Form's built-in error management -->
                             <p class="mt-2 text-sm text-red-600">
-                                Way 2 - Errors from Svelte state submitErrors: {submitErrors.username} <!-- Can we use error mangement form TanStack for this? -->
-
-                                - This can be reset because it is Svelte state.
+                                TanStack Form Errors: {field.state.meta.errors[0]}
                             </p>
                         {/if}
                     {/snippet}
@@ -180,7 +183,7 @@
                     </form.Subscribe>
 
                     <div class="flex space-x-3">
-                        {#if Object.keys(submitErrors).length > 0}
+                        {#if form.state.errors.length > 0}
                             <button
                                 type="button"
                                 onclick={clearErrors}
