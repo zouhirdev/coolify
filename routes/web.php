@@ -25,6 +25,11 @@ Route::get('/svelte-way-1', fn () => Inertia::render('Svelte/Way1TanStack', [
     'notifications_enabled' => true,
 ]))->name('svelte.way.1');
 
+Route::get('/svelte-way-1-with-state', fn () => Inertia::render('Svelte/Way1TanStackWithState', [
+    'username' => 'Test User',
+    'notifications_enabled' => true,
+]))->name('svelte.way.1.with.state');
+
 Route::get('/svelte-way-2', fn () => Inertia::render('Svelte/Way2TanStack', [
     'username' => 'Test User',
     'notifications_enabled' => true,
