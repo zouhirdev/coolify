@@ -31,14 +31,14 @@
                 preserveScroll: true,
                 onSuccess: () => {
                     submitSuccess = true;
-                    form.setErrorMap({}); // is the a metode on TanStack Form to reset errors?
                 },
                 onError: (errors) => {
                     // Inertia: errors.username = "error message"
                     form.setErrorMap({
                         onSubmit: {
-                            fields: errors
-                        }
+                            fields: errors,
+                            form: errors,
+                        },
                     });
                 },
             });
@@ -48,7 +48,6 @@
     function handleReset() {
         form.reset();
         submitSuccess = false;
-        form.setErrorMap({});
     }
 
     function clearErrors() {
@@ -93,20 +92,23 @@
                             class="w-full text-black px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                             class:border-yellow-400={field.state.meta.isDirty &&
                                 field.state.meta.errors.length === 0}
-                            class:border-red-500={field.state.meta.errors.length > 0}
+                            class:border-red-500={field.state.meta.errors
+                                .length > 0}
                         />
-                        {#if errors.username}
-                            <!-- Getting the errors from the $props(). Which can NOT be reset because it is a prop from Inertia. -->
-                            <p class="mt-2 text-sm text-red-600">
+
+                        <!-- {#if errors.username} -->
+                        <!-- Getting the errors from the $props(). Which can NOT be reset because it is a prop from Inertia. -->
+                        <!-- <p class="mt-2 text-sm text-red-600">
                                 Way 1 - Errors from $props(): {errors.username}
                                 - This can NOT be reset because it is a prop from
                                 Inertia.
-                            </p>
-                        {/if}
+                            </p> -->
+                        <!-- {/if} -->
+
                         {#if field.state.meta.errors.length > 0}
                             <!-- Using TanStack Form's built-in error management -->
                             <p class="mt-2 text-sm text-red-600">
-                                TanStack Form Errors: {field.state.meta.errors[0]}
+                                TanStack Form Errors: {field.state.meta.errors}
                             </p>
                         {/if}
                     {/snippet}
@@ -129,7 +131,7 @@
                             <input
                                 id={field.name}
                                 type="checkbox"
-                                checked={field.state.value}
+                                checked={field.state.value as boolean}
                                 oninput={(e: Event) => {
                                     const target = e.target as HTMLInputElement;
                                     field.handleChange(target.checked);
@@ -137,6 +139,12 @@
                                 class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                             />
                         </div>
+                        {#if field.state.meta.errors.length > 0}
+                            <!-- Using TanStack Form's built-in error management -->
+                            <p class="mt-2 text-sm text-red-600">
+                                TanStack Form Errors: {field.state.meta.errors}
+                            </p>
+                        {/if}
                     {/snippet}
                 </form.Field>
 
@@ -195,14 +203,12 @@
 
                         <form.Subscribe
                             selector={(state) => ({
-                                canSubmit: state.canSubmit,
                                 isSubmitting: state.isSubmitting,
                             })}
                         >
                             {#snippet children(state)}
                                 <button
                                     type="submit"
-                                    disabled={!state.canSubmit}
                                     class="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                                 >
                                     {#if state.isSubmitting}
