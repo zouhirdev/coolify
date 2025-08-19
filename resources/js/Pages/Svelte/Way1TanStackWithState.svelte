@@ -17,7 +17,6 @@
         notifications_enabled: notifications_enabled,
     };
 
-    // Manual tracking state for this approach. --> Can we use the state management of TanStack and get rid of this?
     let submitSuccess = $state(false);
 
     const form = createForm(() => ({
@@ -33,12 +32,13 @@
                     form.setErrorMap({
                         onSubmit: {
                             fields: errors,
-                            form: errors, // Form level errors are not set here form.state.errors.length > 0 -> this even with errors is 0
+                            form: errors, 
                         },
                     });
                 },
             });
         },
+        
         // Add listeners to automatically save form state to history
         listeners: {
             onChange: ({ formApi }) => {
