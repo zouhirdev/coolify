@@ -5,20 +5,10 @@
     type Props = {
         username: string;
         notifications_enabled: boolean;
-        errors?: Record<string, string>; // Way 1 & Way 2 -> getting the errors via $props(). On this page there is also Way 2 -> getting the errors form the submitErrors state.
         flash?: { message?: string };
     };
 
-    let {
-        username,
-        notifications_enabled,
-        errors = {},
-        flash = {},
-    }: Props = $props(); // Way 1 -> $props() -> Accessing the props of the page via svelte (passed from Inertia).
-
-    // Manual tracking state for this approach. --> Can we use the state management of TanStack and get rid of this?
-    let submitSuccess = $state(false);
-    // let submitErrors = $state<Record<string, string>>({}); // no longer needed as we use setErrorMap() from TanStack Form
+    let { username, notifications_enabled, flash = {} }: Props = $props(); // Way 1 -> $props() -> Accessing the props of the page via svelte (passed from Inertia).
 
     const form = createForm(() => ({
         defaultValues: {
@@ -29,11 +19,9 @@
             // Way 1 -> Manual form submission via Inertia router.
             router.post("/test-form", value, {
                 preserveScroll: true,
-                onSuccess: () => {
-                    submitSuccess = true;
-                },
                 onError: (errors) => {
-                    // Inertia: errors.username = "error message"
+                    console.log("Inertia Errors received:", errors);
+
                     form.setErrorMap({
                         onSubmit: {
                             fields: errors,
@@ -47,7 +35,6 @@
 
     function handleReset() {
         form.reset();
-        submitSuccess = false;
     }
 
     function clearErrors() {
@@ -61,6 +48,48 @@
             <h1 class="text-3xl font-bold text-gray-900 mb-2">
                 Svelte TanStack - Way 1 "$props()"
             </h1>
+        </div>
+
+        <div class="mb-6 bg-blue-50 border border-blue-200 p-4 rounded-md">
+            <h3 class="text-lg font-medium text-blue-800 mb-2">
+                Debug - TanStack Form State:
+            </h3>
+            <div class="text-sm text-blue-700 space-y-1">
+                <p>
+                    <strong>form.state.isSubmitSuccessful:</strong>
+                    {form.state.isSubmitSuccessful}
+                </p>
+                <p><strong>form.state.isValid:</strong> {form.state.isValid}</p>
+                <p>
+                    <strong>form.state.errors.length:</strong>
+                    {form.state.errors.length}
+                </p>
+                <p>
+                    <strong>form.state.errors:</strong>
+                    {JSON.stringify(form.state.errors)}
+                </p>
+                <p>
+                    <strong>form.state.errorMap.onSubmit:</strong>
+                    {JSON.stringify(
+                        (form.state.errorMap as any).onSubmit || {},
+                    )}
+                </p>
+                <p>
+                    <strong>form.state.errorMap.onSubmit?.username:</strong>
+                    {JSON.stringify(
+                        (form.state.errorMap as any).onSubmit?.username || {},
+                    )}
+                </p>
+                <p>
+                    <strong
+                        >form.state.errorMap.onSubmit?.notifications_enabled:</strong
+                    >
+                    {JSON.stringify(
+                        (form.state.errorMap as any).onSubmit
+                            ?.notifications_enabled || {},
+                    )}
+                </p>
+            </div>
         </div>
 
         <div class="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -96,21 +125,35 @@
                                 .length > 0}
                         />
 
-                        <!-- {#if errors.username} -->
-                        <!-- Getting the errors from the $props(). Which can NOT be reset because it is a prop from Inertia. -->
-                        <!-- <p class="mt-2 text-sm text-red-600">
-                                Way 1 - Errors from $props(): {errors.username}
-                                - This can NOT be reset because it is a prop from
-                                Inertia.
-                            </p> -->
-                        <!-- {/if} -->
-
-                        {#if field.state.meta.errors.length > 0}
-                            <!-- Using TanStack Form's built-in error management -->
+                        {#if !field.state.meta.isValid}
                             <p class="mt-2 text-sm text-red-600">
-                                TanStack Form Errors: {field.state.meta.errors}
+                                TanStack Form Errors: {field.state.meta.errors.join(
+                                    ", ",
+                                )}
                             </p>
                         {/if}
+
+                        <div
+                            class="mt-2 text-xs text-gray-500 bg-gray-50 p-2 rounded"
+                        >
+                            <p>
+                                <strong>field.state.meta.isValid:</strong>
+                                {field.state.meta.isValid}
+                            </p>
+                            <p>
+                                <strong>field.state.meta.errors:</strong>
+                                {JSON.stringify(field.state.meta.errors)}
+                            </p>
+                            <p>
+                                <strong
+                                    >field.state.meta.errorMap.onSubmit:</strong
+                                >
+                                {JSON.stringify(
+                                    field.state.meta.errorMap.onSubmit ||
+                                        "undefined",
+                                )}
+                            </p>
+                        </div>
                     {/snippet}
                 </form.Field>
 
@@ -148,7 +191,7 @@
                     {/snippet}
                 </form.Field>
 
-                {#if submitSuccess}
+                {#if form.state.isSubmitSuccessful}
                     <div
                         class="mt-6 bg-green-50 border border-green-200 p-4 rounded-md flex"
                     >
