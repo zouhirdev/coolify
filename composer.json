@@ -4,7 +4,7 @@
     "type": "project",
     "description": "An open-source & self-hostable alternative to Vercel, Heroku, Netlify and Railway for easily deploying websites, databases, web applications and 280+ one-click services to your own server.",
     "homepage": "https://coolify.io",
-    "keywords": ["coolify", "php", "laravel", "inertiajs", "vuejs", "self-hosted", "self-hosting", "docker", "docker-compose", "podman", "deployment", "databases", "static", "nodejs", "nextjs", "mysql", "mariadb", "postgres", "redis", "mongodb"],
+    "keywords": ["coolify", "php", "laravel", "inertiajs", "svelte", "svelte5", "self-hosted", "self-hosting", "docker", "docker-compose", "podman", "deployment", "databases", "static", "nodejs", "nextjs", "mysql", "mariadb", "postgres", "redis"],
     "license": "Apache-2.0",
     "require": {
         "php": "^8.4",
