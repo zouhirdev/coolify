@@ -14,9 +14,15 @@ class Migration extends Command
     {
         if (config('constants.migration.is_migration_enabled')) {
             $this->info('Migration is enabled on this server.');
-            $exitCode = $this->call('migrate', ['--force' => true, '--isolated' => true]);
-            $this->info('Migration completed with exit code: '.$exitCode);
-            exit($exitCode);
+
+            try {
+                $exitCode = $this->call('migrate', ['--force' => true, '--isolated' => true]);
+                $this->info('Migration completed with exit code: '.$exitCode);
+                exit($exitCode);
+            } catch (\Exception $e) {
+                $this->error('Migration failed with exception: '.$e->getMessage());
+                exit(1);
+            }
         } else {
             $this->info('Migration is disabled on this server.');
             exit(0);
