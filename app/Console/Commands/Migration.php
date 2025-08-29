@@ -16,7 +16,7 @@ class Migration extends Command
             $this->info('Migration is enabled on this server.');
 
             try {
-                $exitCode = $this->call('migrate', ['--force' => true, '--isolated' => true]);
+                $exitCode = $this->call('migrate', ['--force' => true, '--isolatedd' => true]);
                 $this->info('Migration completed with exit code: '.$exitCode);
                 exit($exitCode);
             } catch (\Exception $e) {
