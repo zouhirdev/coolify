@@ -6,6 +6,7 @@ cd /var/www/html
 foreground {
     php
     artisan
-    start:migration
+    migrate
+    --forced
 }
 
