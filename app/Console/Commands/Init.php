@@ -51,7 +51,7 @@ class Init extends Command
             $this->cleanupUnusedNetworkFromCoolifyProxy();
         }
 
-        $this->call('cleanup:redis');
+        // $this->call('cleanup:redis');
 
         try {
             $this->call('cleanup:names');
