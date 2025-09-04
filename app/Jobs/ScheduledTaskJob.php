@@ -70,6 +70,8 @@ class ScheduledTaskJob implements ShouldQueue
     public function handle(): void
     {
         try {
+            sleep(60);
+
             $this->task_log = ScheduledTaskExecution::create([
                 'scheduled_task_id' => $this->task->id,
             ]);
