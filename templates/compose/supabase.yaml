@@ -1225,106 +1225,355 @@ services:
       - SUPABASE_DB_URL=postgresql://postgres:${SERVICE_PASSWORD_POSTGRES}@${POSTGRES_HOSTNAME:-supabase-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
       # TODO: Allow configuring VERIFY_JWT per function. This PR might help: https://github.com/supabase/cli/pull/786
       - VERIFY_JWT=${FUNCTIONS_VERIFY_JWT:-false}
+      - FUNCTIONS_DEPLOY_SECRET=${SERVICE_PASSWORD_64_DEPLOY}
     volumes:
       - ./volumes/functions:/home/deno/functions
       - type: bind
         source: ./volumes/functions/main/index.ts
         target: /home/deno/functions/main/index.ts
         content: |
-          import { serve } from 'https://deno.land/std@0.131.0/http/server.ts'
-          import * as jose from 'https://deno.land/x/jose@v4.14.4/index.ts'
-
-          console.log('main function started')
-
-          const JWT_SECRET = Deno.env.get('JWT_SECRET')
-          const VERIFY_JWT = Deno.env.get('VERIFY_JWT') === 'true'
-
-          function getAuthToken(req: Request) {
-            const authHeader = req.headers.get('authorization')
-            if (!authHeader) {
-              throw new Error('Missing authorization header')
-            }
-            const [bearer, token] = authHeader.split(' ')
-            if (bearer !== 'Bearer') {
-              throw new Error(`Auth header is not 'Bearer {token}'`)
-            }
-            return token
-          }
-
-          async function verifyJWT(jwt: string): Promise<boolean> {
-            const encoder = new TextEncoder()
-            const secretKey = encoder.encode(JWT_SECRET)
-            try {
-              await jose.jwtVerify(jwt, secretKey)
-            } catch (err) {
-              console.error(err)
-              return false
-            }
-            return true
-          }
-
-          serve(async (req: Request) => {
-            if (req.method !== 'OPTIONS' && VERIFY_JWT) {
-              try {
-                const token = getAuthToken(req)
-                const isValidJWT = await verifyJWT(token)
-
-                if (!isValidJWT) {
-                  return new Response(JSON.stringify({ msg: 'Invalid JWT' }), {
-                    status: 401,
-                    headers: { 'Content-Type': 'application/json' },
-                  })
-                }
-              } catch (e) {
-                console.error(e)
-                return new Response(JSON.stringify({ msg: e.toString() }), {
-                  status: 401,
+          import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
+          import * as path from "https://deno.land/std@0.131.0/path/mod.ts";
+          import * as jose from "https://deno.land/x/jose@v4.14.4/index.ts";
+          
+          console.log("main function started");
+          // --- Configuration Constants ---
+          const DEPLOY_SECRET = Deno.env.get("FUNCTIONS_DEPLOY_SECRET");
+          const FUNCTIONS_DIR = "/home/deno/functions"; // This path inside the Docker container
+          
+          // Add any function names here that should be protected from modification or deletion.
+          // '_shared' folder is treated as a special case and is also protected from deactivation, but not from modification.
+          const RESERVED_NAMES = ["main", "deploy"];
+          const ENTRYPOINT_FILE = "index.ts";
+          const JWT_SECRET = Deno.env.get("JWT_SECRET");
+          const VERIFY_JWT = Deno.env.get("VERIFY_JWT") === "true";
+          // --- Define the 'tombstone' script for deactivated functions that returns an error response---
+          const DEACTIVATION_SCRIPT = `
+            import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+            serve(async (_req) => {
+              return new Response(
+                JSON.stringify({ error: 'This function has been deleted or is no longer deployed.' }),
+                {
+                  status: 404,
                   headers: { 'Content-Type': 'application/json' },
-                })
+                }
+              );
+            });
+            `;
+          
+          // --- Custom Error Types for Specific HTTP Responses ---
+          class AuthorizationError extends Error {
+            constructor(message: string) {
+              super(message);
+              this.name = "AuthorizationError";
+            }
+          }
+          class ValidationError extends Error {
+            constructor(message: string) {
+              super(message);
+              this.name = "ValidationError";
+            }
+          }
+          
+          // --- Type Definitions ---
+          interface DeploymentPayload {
+            filesToDeploy: Map<string, File>;
+            incomingFunctionNames: Set<string>;
+          }
+          
+          function getAuthToken(req: Request) {
+            const authHeader = req.headers.get("authorization");
+            if (!authHeader) {
+              throw new Error("Missing authorization header");
+            }
+            const [bearer, token] = authHeader.split(" ");
+            if (bearer !== "Bearer") {
+              throw new Error(`Auth header is not 'Bearer {token}'`);
+            }
+            return token;
+          }
+          
+          async function verifyJWT(jwt: string): Promise<boolean> {
+            const encoder = new TextEncoder();
+            const secretKey = encoder.encode(JWT_SECRET);
+            try {
+              await jose.jwtVerify(jwt, secretKey);
+            } catch (err) {
+              console.error(err);
+              return false;
+            }
+            return true;
+          }
+          
+          /**
+           * Creates a standardized JSON response.
+           */
+          function createJsonResponse(body: object, status: number): Response {
+            return new Response(JSON.stringify(body), {
+              status,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          
+          /**
+           * Handles authorization checks for the deployment request.
+           * Throws an AuthorizationError if validation fails.
+           */
+          function handleAuthorization(req: Request): void {
+            if (!DEPLOY_SECRET) {
+              console.error(
+                "FATAL: The 'FUNCTIONS_DEPLOY_SECRET' environment variable is not set. Deployment endpoint is insecure.",
+              );
+              throw new AuthorizationError(
+                "Server configuration error: Deployment secret not set.",
+              );
+            }
+          
+            const deployToken = req.headers.get("deploy-token");
+            if (!deployToken) {
+              throw new AuthorizationError("Missing deployment token.");
+            }
+            if (deployToken !== DEPLOY_SECRET) {
+              throw new AuthorizationError("Invalid deployment token.");
+            }
+          }
+          
+          /**
+           * Parses and validates the incoming FormData.
+           * @returns A map of files to deploy and a set of incoming function names.
+           */
+          async function parseAndValidateFormData(
+            formData: FormData,
+          ): Promise<DeploymentPayload> {
+            const filesToDeploy = new Map<string, File>();
+            const incomingFunctionNames = new Set<string>();
+          
+            console.log("Validating incoming file paths...");
+            for (const [relativePath, value] of formData.entries()) {
+              if (!(value instanceof File)) continue;
+          
+              const [functionName] = relativePath.split("/");
+              if (RESERVED_NAMES.includes(functionName)) {
+                throw new ValidationError(
+                  `Deployment to the reserved directory '${functionName}' is not allowed.`,
+                );
+              }
+          
+              filesToDeploy.set(relativePath, value);
+          
+              if (
+                relativePath.endsWith(`/${ENTRYPOINT_FILE}`) &&
+                !functionName.startsWith("_shared")
+              ) {
+                incomingFunctionNames.add(functionName);
               }
             }
-
-            const url = new URL(req.url)
-            const { pathname } = url
-            const path_parts = pathname.split('/')
-            const service_name = path_parts[1]
-
-            if (!service_name || service_name === '') {
-              const error = { msg: 'missing function name in request' }
+          
+            if (filesToDeploy.size === 0) {
+              throw new ValidationError("No valid function files were provided.");
+            }
+          
+            console.log(
+              `Incoming functions identified: ${
+                Array.from(incomingFunctionNames).join(", ") || "None"
+              }`,
+            );
+            return { filesToDeploy, incomingFunctionNames };
+          }
+          
+          /**
+           * Gets the names of all currently existing, non-reserved functions.
+           */
+          async function getExistingFunctionNames(): Promise<Set<string>> {
+            const existingNames = new Set<string>();
+            for await (const dirEntry of Deno.readDir(FUNCTIONS_DIR)) {
+              const isProtected = RESERVED_NAMES.includes(dirEntry.name) ||
+                dirEntry.name === "_shared";
+              if (dirEntry.isDirectory && !isProtected) {
+                existingNames.add(dirEntry.name);
+              }
+            }
+            return existingNames;
+          }
+          
+          /**
+           * Deactivates functions that exist on the server but are not in the current deployment.
+           */
+          async function deactivateObsoleteFunctions(
+            existingFunctions: Set<string>,
+            incomingFunctions: Set<string>,
+          ): Promise<string[]> {
+            const functionsToDeactivate = [...existingFunctions].filter((name) =>
+              !incomingFunctions.has(name)
+            );
+          
+            if (functionsToDeactivate.length === 0) {
+              console.log("No functions to deactivate.");
+              return [];
+            }
+          
+            console.log(`Deactivating functions: ${functionsToDeactivate.join(", ")}`);
+          
+            const deactivationPromises = functionsToDeactivate.map(async (funcName) => {
+              const indexPath = path.join(FUNCTIONS_DIR, funcName, ENTRYPOINT_FILE);
+              try {
+                await Deno.writeTextFile(indexPath, DEACTIVATION_SCRIPT);
+              } catch (e) {
+                // Log error but don't fail the entire deployment for a deactivation failure
+                console.error(
+                  `Could not deactivate function ${funcName}. Error: ${e.message}`,
+                );
+              }
+            });
+          
+            await Promise.all(deactivationPromises);
+            return functionsToDeactivate;
+          }
+          
+          /**
+           * Writes the new and updated function files to the filesystem.
+           */
+          async function writeFunctionFiles(
+            filesToDeploy: Map<string, File>,
+          ): Promise<void> {
+            console.log("Deploying new and updated files...");
+          
+            const writePromises = Array.from(filesToDeploy.entries()).map(
+              async ([relativePath, file]) => {
+                const fullPath = path.join(FUNCTIONS_DIR, relativePath);
+                const directoryForFile = path.dirname(fullPath);
+                const fileContent = await file.text();
+          
+                await Deno.mkdir(directoryForFile, { recursive: true });
+                await Deno.writeTextFile(fullPath, fileContent);
+                console.log(`Successfully deployed: ${relativePath}`);
+              },
+            );
+          
+            await Promise.all(writePromises);
+          }
+          
+          /**
+           * Main handler for deploying Supabase edge functions selectively.
+           */
+          export async function deployFunctions(req: Request): Promise<Response> {
+            try {
+              console.log("Selective batch deployment process starting...");
+          
+              // 1. Authorization
+              handleAuthorization(req);
+          
+              // 2. Parsing and Validation
+              const formData = await req.formData();
+              const { filesToDeploy, incomingFunctionNames } =
+                await parseAndValidateFormData(formData);
+          
+              // 3. Deactivate Obsolete Functions
+              const existingFunctions = await getExistingFunctionNames();
+              const deactivated_functions = await deactivateObsoleteFunctions(
+                existingFunctions,
+                incomingFunctionNames,
+              );
+          
+              // 4. Deploy New/Updated Functions
+              await writeFunctionFiles(filesToDeploy);
+          
+              console.log("Selective batch deployment process completed successfully.");
+              return createJsonResponse({
+                message: "Deployment successful.",
+                deployed_paths: Array.from(filesToDeploy.keys()),
+                deactivated_functions,
+              }, 200);
+            } catch (err) {
+              console.error(`Deployment failed: [${err.name}] ${err.message}`);
+          
+              if (err instanceof AuthorizationError) {
+                return createJsonResponse({ msg: err.message }, 401);
+              }
+              if (err instanceof ValidationError) {
+                return createJsonResponse({ msg: err.message }, 400);
+              }
+          
+              return createJsonResponse(
+                { msg: "An internal server error occurred." },
+                500,
+              );
+            }
+          }
+          
+          serve(async (req: Request) => {
+            // --- 1. Extract service_name from the URL first ---
+            const url = new URL(req.url);
+            const { pathname } = url;
+            const path_parts = pathname.split("/");
+            const service_name = path_parts[1];
+          
+            // --- 2. Perform the JWT check, but exclude the 'deploy' service ---
+            // The 'deploy' service has its own token-based auth.
+            if (req.method !== "OPTIONS" && VERIFY_JWT && service_name !== "deploy") {
+              try {
+                const token = getAuthToken(req);
+                const isValidJWT = await verifyJWT(token);
+          
+                if (!isValidJWT) {
+                  return new Response(JSON.stringify({ msg: "Invalid JWT" }), {
+                    status: 401,
+                    headers: { "Content-Type": "application/json" },
+                  });
+                }
+              } catch (e) {
+                console.error(e);
+                return new Response(JSON.stringify({ msg: e.toString() }), {
+                  status: 401,
+                  headers: { "Content-Type": "application/json" },
+                });
+              }
+            }
+          
+            if (!service_name || service_name === "") {
+              const error = { msg: "missing function name in request" };
               return new Response(JSON.stringify(error), {
                 status: 400,
-                headers: { 'Content-Type': 'application/json' },
-              })
+                headers: { "Content-Type": "application/json" },
+              });
             }
-
-            const servicePath = `/home/deno/functions/${service_name}`
-            console.error(`serving the request with ${servicePath}`)
-
-            const memoryLimitMb = 150
-            const workerTimeoutMs = 1 * 60 * 1000
-            const noModuleCache = false
-            const importMapPath = null
-            const envVarsObj = Deno.env.toObject()
-            const envVars = Object.keys(envVarsObj).map((k) => [k, envVarsObj[k]])
-
-            try {
-              const worker = await EdgeRuntime.userWorkers.create({
-                servicePath,
-                memoryLimitMb,
-                workerTimeoutMs,
-                noModuleCache,
-                importMapPath,
-                envVars,
-              })
-              return await worker.fetch(req)
-            } catch (e) {
-              const error = { msg: e.toString() }
-              return new Response(JSON.stringify(error), {
-                status: 500,
-                headers: { 'Content-Type': 'application/json' },
-              })
+          
+            console.log("service name: ", service_name);
+          
+            if (service_name === "deploy") {
+              return await deployFunctions(req);
+            } else {
+              const servicePath = `/home/deno/functions/${service_name}`;
+              console.error(`serving the request with ${servicePath}`);
+          
+              const memoryLimitMb = 150;
+              const workerTimeoutMs = 1 * 60 * 1000;
+              const noModuleCache = false;
+              const importMapPath = null;
+              const envVarsObj = Deno.env.toObject();
+              const envVars = Object.keys(envVarsObj).map((k) => [k, envVarsObj[k]]);
+          
+              try {
+                const worker = await EdgeRuntime.userWorkers.create({
+                  servicePath,
+                  memoryLimitMb,
+                  workerTimeoutMs,
+                  noModuleCache,
+                  importMapPath,
+                  envVars,
+                });
+                return await worker.fetch(req);
+              } catch (e) {
+                const error = { msg: e.toString() };
+                console.log("error catched", error);
+                return new Response(JSON.stringify(error), {
+                  status: 500,
+                  headers: { "Content-Type": "application/json" },
+                });
+              }
             }
-          })
+          });
+
       - type: bind
         source: ./volumes/functions/hello/index.ts
         target: /home/deno/functions/hello/index.ts
